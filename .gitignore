@@ -1,22 +1,4 @@
-# OS
+node_modules/
+.env
 .DS_Store
 Thumbs.db
-
-# Editors
-.vscode/
-.idea/
-
-# Logs
-*.log
-
-# Node (future use)
-node_modules/
-dist/
-
-# Local env
-.env
-.env.*
-
-# Temporary
-*.tmp
-*.temp

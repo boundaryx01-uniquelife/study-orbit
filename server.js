@@ -1,5 +1,6 @@
 import http from "node:http";
 import fs from "node:fs/promises";
+import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -25,8 +26,14 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
+    if (url.pathname === "/api/book-search") {
+      await handleBookSearch(url, res);
+      return;
+    }
+
+    // v0.3 compatibility alias. The app now uses /api/book-search.
     if (url.pathname === "/api/book-cover") {
-      await handleBookCover(url, res);
+      await handleBookSearch(url, res);
       return;
     }
 
@@ -38,11 +45,13 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`STUDY ORBIT v0.3 running at http://localhost:${PORT}`);
+  console.log(`STUDY ORBIT v0.4 running at http://localhost:${PORT}`);
+  console.log(`Working directory: ${process.cwd()}`);
+  console.log(`Env file path: ${path.join(process.cwd(), ".env")}`);
   console.log(KAKAO_REST_API_KEY ? "Kakao REST API key: loaded" : "Kakao REST API key: missing");
 });
 
-async function handleBookCover(url, res) {
+async function handleBookSearch(url, res) {
   if (!KAKAO_REST_API_KEY) {
     sendJson(res, 500, { error: "KAKAO_REST_API_KEY_MISSING" });
     return;
@@ -54,12 +63,12 @@ async function handleBookCover(url, res) {
     return;
   }
 
-  const kakaoQuery = `${rawQuery} 문제집 표지`;
-  const apiUrl = new URL("https://dapi.kakao.com/v2/search/image");
-  apiUrl.searchParams.set("query", kakaoQuery);
+  const apiUrl = new URL("https://dapi.kakao.com/v3/search/book");
+  apiUrl.searchParams.set("query", rawQuery);
+  apiUrl.searchParams.set("target", "title");
   apiUrl.searchParams.set("sort", "accuracy");
   apiUrl.searchParams.set("page", "1");
-  apiUrl.searchParams.set("size", "12");
+  apiUrl.searchParams.set("size", "10");
 
   const response = await fetch(apiUrl, {
     headers: {
@@ -70,7 +79,7 @@ async function handleBookCover(url, res) {
   if (!response.ok) {
     const detail = await response.text();
     sendJson(res, response.status, {
-      error: "KAKAO_API_ERROR",
+      error: "KAKAO_BOOK_API_ERROR",
       status: response.status,
       detail: detail.slice(0, 500)
     });
@@ -78,25 +87,29 @@ async function handleBookCover(url, res) {
   }
 
   const data = await response.json();
-  const items = (data.documents || [])
-    .filter(item => item.thumbnail_url || item.image_url)
-    .map(item => ({
-      title: guessTitle(rawQuery, item),
-      subject: guessSubject(rawQuery),
-      cover: item.thumbnail_url || item.image_url,
-      image: item.image_url,
-      source: item.display_sitename || "Kakao Image Search",
-      docUrl: item.doc_url,
-      width: item.width,
-      height: item.height
-    }))
-    .filter(item => {
-      if (!item.width || !item.height) return true;
-      return item.height >= item.width * 0.85;
-    })
-    .slice(0, 8);
+  const items = (data.documents || []).map(book => ({
+    title: cleanTitle(book.title),
+    authors: book.authors || [],
+    publisher: book.publisher || "",
+    isbn: book.isbn || "",
+    thumbnail: book.thumbnail || "",
+    cover: book.thumbnail || "",
+    url: book.url || "",
+    datetime: book.datetime || "",
+    price: book.price || 0,
+    salePrice: book.sale_price || 0,
+    status: book.status || "",
+    subject: guessSubject(`${book.title} ${rawQuery}`),
+    source: "Kakao Book Search"
+  }));
 
-  sendJson(res, 200, { query: rawQuery, kakaoQuery, items });
+  sendJson(res, 200, {
+    query: rawQuery,
+    totalCount: data.meta?.total_count || 0,
+    pageableCount: data.meta?.pageable_count || 0,
+    isEnd: data.meta?.is_end ?? true,
+    items
+  });
 }
 
 async function serveStatic(url, res) {
@@ -131,6 +144,10 @@ function sendText(res, status, text) {
   res.end(text);
 }
 
+function cleanTitle(title) {
+  return String(title || "").replace(/<[^>]*>/g, "").trim();
+}
+
 function guessSubject(query) {
   if (query.includes("수학")) return "수학";
   if (query.includes("과학") || query.includes("물리") || query.includes("화학") || query.includes("생명") || query.includes("지구")) return "과학";
@@ -140,23 +157,33 @@ function guessSubject(query) {
   return "기타";
 }
 
-function guessTitle(query, item) {
-  const site = item.display_sitename ? ` · ${item.display_sitename}` : "";
-  return `${query}${site}`;
-}
-
 function loadDotEnv() {
+  const envPath = path.join(process.cwd(), ".env");
+
+  if (!existsSync(envPath)) {
+    console.warn(`.env file not found at: ${envPath}`);
+    return;
+  }
+
   try {
-    const envPath = path.join(process.cwd(), ".env");
-    const raw = require("node:fs").readFileSync(envPath, "utf-8");
-    raw.split(/\r?\n/).forEach(line => {
+    const raw = readFileSync(envPath, "utf-8").replace(/^\uFEFF/, "");
+    const lines = raw.split(/\n/);
+
+    for (const line of lines) {
       const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) return;
+      if (!trimmed || trimmed.startsWith("#")) continue;
+
       const eq = trimmed.indexOf("=");
-      if (eq === -1) return;
+      if (eq === -1) continue;
+
       const key = trimmed.slice(0, eq).trim();
       const value = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
-      if (!process.env[key]) process.env[key] = value;
-    });
-  } catch {}
+
+      if (!process.env[key]) {
+        process.env[key] = value;
+      }
+    }
+  } catch (error) {
+    console.warn(".env 파일을 읽지 못했습니다:", error.message);
+  }
 }

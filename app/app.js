@@ -281,7 +281,7 @@ function openBookSearch(){
       <button class="primary" id="searchBtn">표지 검색</button>
       <div id="searchResults"></div>
       <p class="note" style="color:#64748b;background:#f8fafc;border-color:#e2e8f0;margin-top:12px">
-        v0.3은 로컬 프록시를 통해 카카오 이미지 검색을 호출합니다. API 오류 시 mock 결과로 자동 전환합니다.
+        v0.4는 카카오 도서 API로 제목, 출판사, ISBN, 썸네일을 가져옵니다. API 오류 시 mock 결과로 자동 전환합니다.
       </p>
       <button class="secondary" style="margin-top:10px" onclick="document.querySelector('#modal').close()">닫기</button>
     </div>`;
@@ -292,12 +292,12 @@ function openBookSearch(){
     $("#searchResults").innerHTML = `<p class="muted">표지를 찾는 중입니다...</p>`;
 
     try {
-      const response = await fetch(`/api/book-cover?q=${encodeURIComponent(q)}`);
+      const response = await fetch(`/api/book-search?q=${encodeURIComponent(q)}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
 
       if (!data.items || data.items.length === 0) {
-        throw new Error("NO_RESULTS");
+        throw new Error("NO_BOOK_RESULTS");
       }
 
       $("#searchResults").innerHTML = data.items.map((b, i) => `
@@ -305,7 +305,7 @@ function openBookSearch(){
           ${coverHTML({title:b.title, subject:b.subject || "기타", cover:b.cover})}
           <div>
             <strong>${b.title}</strong><br>
-            <small>${b.source || "Kakao"} · ${b.subject || "기타"} · 표지 후보</small>
+            <small>${b.publisher || "출판사 정보 없음"} · ${b.authors?.join(", ") || "저자 정보 없음"}</small>
           </div>
         </div>
       `).join("");
@@ -338,7 +338,10 @@ function registerSearchedBook(book){
   state.books.push({
     id:"b"+Date.now(),
     title:book.title,
-    publisher:book.source || "Kakao Image Search",
+    publisher:book.publisher || "",
+    authors:book.authors || [],
+    isbn:book.isbn || "",
+    url:book.url || "",
     subject:book.subject || "기타",
     total:Number(total),
     solved:0,
@@ -346,7 +349,7 @@ function registerSearchedBook(book){
     minutes:0,
     memorable:0,
     archived:false,
-    cover:book.cover
+    cover:book.thumbnail || book.cover
   });
   save(); $("#modal").close(); renderBooks();
 }
@@ -360,7 +363,7 @@ function registerMockBook(book){
     publisher:book.publisher,
     subject:book.subject,
     total:Number(total),
-    solved:0, wrong:0, minutes:0, memorable:0, archived:false, cover:book.cover
+    solved:0, wrong:0, minutes:0, memorable:0, archived:false, cover:book.thumbnail || book.cover
   });
   save(); $("#modal").close(); renderBooks();
 }

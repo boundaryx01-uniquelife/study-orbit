@@ -1,6 +1,6 @@
 {
   "name": "study-orbit",
-  "version": "0.6.7-vercel-stable",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "scripts": {

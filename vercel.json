@@ -1,0 +1,13 @@
+{
+  "rewrites": [
+    { "source": "/api/config", "destination": "/api/config.js" },
+    { "source": "/api/book-search", "destination": "/api/book-search.js" },
+    { "source": "/", "destination": "/app/index.html" },
+    { "source": "/manifest.webmanifest", "destination": "/app/manifest.webmanifest" },
+    { "source": "/service-worker.js", "destination": "/app/service-worker.js" },
+    { "source": "/icon.svg", "destination": "/app/icon.svg" },
+    { "source": "/app.js", "destination": "/app/app.js" },
+    { "source": "/styles.css", "destination": "/app/styles.css" },
+    { "source": "/:path((?!api/).*)", "destination": "/app/index.html" }
+  ]
+}

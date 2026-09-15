@@ -1,6 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 
-const SESSION_KEY = "study-orbit-session-v05-webdb";
+const SESSION_KEY = "study-orbit-session-v051-webdb";
+
 const today = () => new Date().toISOString().slice(0, 10);
 const nowISO = () => new Date().toISOString();
 const fmtMin = (min) => `${Math.floor((min || 0) / 60)}시간 ${(min || 0) % 60}분`;
@@ -12,20 +13,24 @@ let screen = "today";
 let tick = null;
 let state = { goals: [], books: [], sessions: [], mistakes: [], timer: null };
 
-init();
-
-document.querySelectorAll(".tabbar button").forEach((btn) => {
-  btn.onclick = () => {
-    screen = btn.dataset.screen;
-    render();
-  };
+window.addEventListener("error", (event) => {
+  renderFatalError(event.error?.message || event.message || "알 수 없는 JavaScript 오류");
 });
+
+window.addEventListener("unhandledrejection", (event) => {
+  renderFatalError(event.reason?.message || String(event.reason) || "알 수 없는 비동기 오류");
+});
+
+init();
 
 async function init() {
   try {
+    await unregisterOldServiceWorkers();
+    bindTabs();
+
     config = await localJson("/api/config");
 
-    if (!config.supabaseUrl || !config.supabaseAnonKey) {
+    if (!config?.supabaseUrl || !config?.supabaseAnonKey) {
       renderError("SUPABASE_URL 또는 SUPABASE_ANON_KEY가 없습니다. .env를 확인하세요.");
       return;
     }
@@ -37,8 +42,8 @@ async function init() {
       return;
     }
 
-    const ok = await refreshUser();
-    if (!ok) {
+    const valid = await refreshUser();
+    if (!valid) {
       logout(false);
       renderAuth("signin");
       return;
@@ -49,7 +54,30 @@ async function init() {
     render();
   } catch (error) {
     console.error(error);
-    renderError(error.message);
+    renderError(error.message || String(error));
+  }
+}
+
+function bindTabs() {
+  document.querySelectorAll(".tabbar button").forEach((btn) => {
+    btn.onclick = () => {
+      screen = btn.dataset.screen;
+      render();
+    };
+  });
+}
+
+async function unregisterOldServiceWorkers() {
+  if (!("serviceWorker" in navigator)) return;
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((reg) => reg.unregister()));
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((key) => key.startsWith("study-orbit") || key.startsWith("orbit")).map((key) => caches.delete(key)));
+    }
+  } catch (error) {
+    console.warn("Service worker cleanup skipped", error);
   }
 }
 
@@ -76,13 +104,9 @@ function logout(shouldRender = true) {
 }
 
 async function localJson(url) {
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: "no-store" });
   const text = await response.text();
-
-  if (!response.ok) {
-    throw new Error(text || `HTTP ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(text || `HTTP ${response.status}`);
   return text ? JSON.parse(text) : null;
 }
 
@@ -128,9 +152,10 @@ async function refreshUser() {
     const user = await sb("/auth/v1/user");
     if (!user?.id) return false;
     session.user = user;
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    saveSession(session);
     return true;
-  } catch {
+  } catch (error) {
+    console.warn("refreshUser failed", error);
     return false;
   }
 }
@@ -152,7 +177,7 @@ async function signUp(email, password, meta) {
   }
 
   if (data?.user && !data?.access_token) {
-    alert("회원가입은 되었지만 이메일 확인이 필요합니다. Supabase Auth에서 Confirm email을 끄거나, 확인 메일을 누른 뒤 로그인하세요.");
+    alert("회원가입은 되었지만 이메일 확인이 필요합니다. 확인 메일을 누른 뒤 로그인하거나, Supabase Auth에서 Confirm email을 꺼주세요.");
     renderAuth("signin");
     return;
   }
@@ -234,8 +259,34 @@ function showTabs(show) {
 
 function renderError(message) {
   showTabs(false);
-  setHeader("설정 필요", "환경변수 또는 서버 설정을 확인해야 합니다.");
-  $("#screen").innerHTML = `<section class="panel light"><h2>설정 오류</h2><p class="muted">${escapeHTML(message)}</p></section>`;
+  setHeader("설정 또는 연결 확인", "아래 메시지를 확인해 주세요.");
+  $("#screen").innerHTML = `
+    <section class="panel light">
+      <h2>앱 초기화 실패</h2>
+      <p class="muted">${escapeHTML(message)}</p>
+      <button class="primary" id="retryBtn">다시 시도</button>
+      <button class="secondary" id="clearBtn" style="margin-top:10px">세션 초기화</button>
+    </section>
+  `;
+  $("#retryBtn").onclick = () => location.reload();
+  $("#clearBtn").onclick = () => {
+    localStorage.removeItem(SESSION_KEY);
+    location.reload();
+  };
+}
+
+function renderFatalError(message) {
+  const screenEl = $("#screen");
+  if (!screenEl) return;
+  showTabs(false);
+  setHeader("앱 오류", "JavaScript 오류가 잡혔습니다.");
+  screenEl.innerHTML = `
+    <section class="panel light">
+      <h2>먹통 원인 메시지</h2>
+      <p class="muted">${escapeHTML(message)}</p>
+      <button class="primary" onclick="location.reload()">새로고침</button>
+    </section>
+  `;
 }
 
 function renderAuth(initialMode = "signup") {
@@ -262,7 +313,6 @@ function renderAuth(initialMode = "signup") {
   `;
 
   let mode = initialMode;
-
   const applyMode = () => {
     document.querySelectorAll(".signup-only").forEach((el) => {
       el.style.display = mode === "signup" ? "block" : "none";
@@ -570,9 +620,10 @@ function openBookSearch() {
     if (!query) return;
     $("#searchResults").innerHTML = `<p class="muted">도서를 찾는 중입니다...</p>`;
     try {
-      const response = await fetch(`/api/book-search?q=${encodeURIComponent(query)}`);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || data.error || `HTTP ${response.status}`);
+      const response = await fetch(`/api/book-search?q=${encodeURIComponent(query)}`, { cache: "no-store" });
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
+      if (!response.ok) throw new Error(data.message || data.error || data.detail || `HTTP ${response.status}`);
       if (!data.items?.length) {
         $("#searchResults").innerHTML = `<p class="muted">검색 결과가 없습니다.</p>`;
         return;

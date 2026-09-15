@@ -1,12 +1,9 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
   "rewrites": [
     { "source": "/api/config", "destination": "/api/config.js" },
     { "source": "/api/book-search", "destination": "/api/book-search.js" },
-    { "source": "/app.js", "destination": "/app/app.js" },
-    { "source": "/styles.css", "destination": "/app/styles.css" },
-    { "source": "/manifest.webmanifest", "destination": "/app/manifest.webmanifest" },
-    { "source": "/service-worker.js", "destination": "/app/service-worker.js" },
-    { "source": "/icon.svg", "destination": "/app/icon.svg" },
-    { "source": "/:path((?!api/|app.js|styles.css|manifest.webmanifest|service-worker.js|icon.svg).*)", "destination": "/index.html" }
+    { "source": "/:path((?!api/).*)", "destination": "/index.html" }
   ]
 }

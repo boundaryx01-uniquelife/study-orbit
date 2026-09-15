@@ -1,4 +1,4 @@
-# STUDY ORBIT v0.4
+# STUDY ORBIT v0.5-webdb
 
 특목고, 과학고, 한국과학영재학교 준비 학생을 위한 PWA 학습기록장입니다.
 
@@ -7,32 +7,46 @@
 **Record less. Learn more.**  
 기록은 짧게, 학습은 깊게.
 
-## v0.4 변화
+## v0.5-webdb 변화
 
-- 문제집 검색을 Kakao Image Search에서 Kakao Book Search API로 전환
-- `/api/book-search?q=문제집명` 로컬 프록시 추가
-- 제목, 저자, 출판사, ISBN, 썸네일, 도서 URL 저장 구조 반영
-- API 오류 시 mock 검색으로 자동 백업
-- 문제집 삭제 기능 유지
-- API 키는 `.env`에만 저장하고, 프론트엔드 코드에는 넣지 않음
+- localStorage 사용자 DB 폐기
+- Supabase Auth 로그인/회원가입 도입
+- Supabase Postgres에 문제집, 목표, 학습 세션, 기억할 문제 저장
+- RLS 정책으로 사용자별 데이터 분리
+- Kakao Book Search API 프록시 유지
+- 프론트 코드에 API 키를 직접 저장하지 않음
 
-## 실행
+## 1. Supabase SQL 실행
 
-반드시 저장소 루트에서 실행합니다.
+Supabase Dashboard > SQL Editor에서 아래 파일 전체를 실행합니다.
+
+```text
+supabase/schema.sql
+```
+
+## 2. 환경변수 설정
 
 ```powershell
 cd C:\DEV\study-orbit
-
 copy .env.example .env
 notepad .env
-npm run dev
 ```
 
-`.env` 예시:
+`.env`에 입력:
 
 ```env
-KAKAO_REST_API_KEY=복사한_REST_API_키
+KAKAO_REST_API_KEY=카카오_REST_API_키
+SUPABASE_URL=https://프로젝트ref.supabase.co
+SUPABASE_ANON_KEY=supabase_anon_public_key
 PORT=8000
+```
+
+`service_role key`는 절대 넣지 않습니다.
+
+## 3. 실행
+
+```powershell
+npm run dev
 ```
 
 브라우저:
@@ -44,15 +58,21 @@ http://localhost:8000
 ## 정상 메시지
 
 ```text
-STUDY ORBIT v0.4 running at http://localhost:8000
-Working directory: C:\DEV\study-orbit
-Env file path: C:\DEV\study-orbit\.env
+STUDY ORBIT v0.5-webdb running at http://localhost:8000
 Kakao REST API key: loaded
+Supabase URL: loaded
+Supabase anon key: loaded
 ```
 
-## 테스트 검색어
+## 테스트 체크리스트
 
-- 최상위 수학 6-2
-- 블랙라벨 중학 수학 1-1
-- 오투 중등 과학 1-1
-- 쎈 중등 수학 1-1
+1. 회원가입
+2. 로그인
+3. 오늘 목표 추가
+4. 문제집 검색
+5. 문제집 등록
+6. 개인공부 타이머 기록
+7. 학원 숙제 기록
+8. 리포트 반영
+9. 로그아웃 후 재로그인
+10. 데이터 유지 확인

@@ -1,4 +1,4 @@
-const CACHE = "study-orbit-v03";
+const CACHE = "study-orbit-v05-webdb";
 const ASSETS = ["./","index.html","styles.css","app.js","manifest.webmanifest","icon.svg"];
 
 self.addEventListener("install", event => {

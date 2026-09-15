@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0b1026" />
-  <title>STUDY ORBIT v0.2</title>
+  <title>STUDY ORBIT WebDB</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -14,12 +14,10 @@
     <header class="hero">
       <div>
         <p class="eyebrow">STUDY ORBIT</p>
-        <h1 id="screenTitle">오늘의 궤도</h1>
-        <p id="screenSub" class="subtitle">기록은 짧게, 학습은 깊게.</p>
+        <h1 id="screenTitle">ORBIT 시작</h1>
+        <p id="screenSub" class="subtitle">Supabase Web DB 연결 버전</p>
       </div>
-      <div class="orbit-logo" aria-label="ORBIT">
-        <span></span>
-      </div>
+      <div class="orbit-logo"><span></span></div>
     </header>
 
     <main id="screen"></main>
@@ -34,12 +32,6 @@
   </div>
 
   <dialog id="modal"></dialog>
-
-  <script src="app.js"></script>
-  <script>
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./service-worker.js");
-    }
-  </script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

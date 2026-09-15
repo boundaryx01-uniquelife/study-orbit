@@ -1,9 +1,10 @@
 {
   "name": "study-orbit",
-  "version": "0.5.0-webdb",
+  "version": "0.6.3-vercel",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build": "node scripts/build-vercel.js"
   }
 }

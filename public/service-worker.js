@@ -1,5 +1,5 @@
-const CACHE = 'study-orbit-shell-v072';
-const SHELL = ['/', '/index.html', '/orbit.css?v=0.7.2', '/orbit-archive.css?v=0.7.2', '/orbit.js?v=0.7.2', '/orbit-progress.js?v=0.7.2', '/orbit-archive.js?v=0.7.2', '/pwa.js?v=0.7.2', '/manifest.webmanifest', '/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/icons/apple-touch-icon.png'];
+const CACHE = 'study-orbit-shell-v073';
+const SHELL = ['/', '/index.html', '/orbit.css?v=0.7.2', '/orbit-archive.css?v=0.7.2', '/orbit.js?v=0.7.2', '/orbit-progress.js?v=0.7.3', '/orbit-archive.js?v=0.7.2', '/pwa.js?v=0.7.2', '/manifest.webmanifest', '/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/icons/apple-touch-icon.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)));
 });

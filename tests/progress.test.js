@@ -14,7 +14,7 @@ test('explicit API counts are preserved; missing or descriptive values stay unkn
 });
 
 test('page and accuracy metrics distinguish unknown totals and zero attempts', async () => {
-  const context = vm.createContext({ renderBooks() {} });
+  const context = vm.createContext({ renderBooks() {}, renderStudy() {} });
   vm.runInContext(await fs.readFile(new URL('../public/orbit-progress.js',import.meta.url),'utf8'),context);
   assert.equal(context.bookMetrics({total_pages:200,completed_pages:50}).percent,25);
   assert.equal(context.bookMetrics({}).percent,null);

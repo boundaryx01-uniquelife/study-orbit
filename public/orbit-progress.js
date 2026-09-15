@@ -75,6 +75,50 @@ function editBookCounts(id) {
 addBookProgress = async function(id, { date=today(), solved=0, wrong=0, minutes=0, memo='', pages=0, current=null, requestId, startedAt=null, endedAt=null, subject=null }) {
   return sb('/rest/v1/rpc/record_book_progress', {method:'POST',body:JSON.stringify({p_book_id:id,p_request_id:requestId,p_log_date:date,p_solved:solved,p_wrong:wrong,p_minutes:minutes,p_memo:memo,p_pages_added:pages,p_current_page:current,p_timer_started_at:startedAt,p_timer_ended_at:endedAt,p_subject:subject})});
 };
+
+const renderStudyWithManual = renderStudy;
+renderStudy = function() {
+  renderStudyWithManual();
+  if (timer || !$('#startTimer')) return;
+  $('#startTimer').insertAdjacentHTML('afterend', '<button id="manualStudy" class="secondary big wide" style="margin-top:10px">시간 직접 기록</button>');
+  $('#manualStudy').onclick = openManualStudy;
+};
+function manualIso(date, time) { return time ? new Date(`${date}T${time}:00`).toISOString() : null; }
+function openManualStudy() {
+  const m = $('#modal'), requestId = crypto.randomUUID();
+  m.innerHTML = `<form class="modal-body" id="manualStudyForm"><h3>개인공부 직접 기록</h3><p class="muted small">타이머 없이 공부한 시간도 남길 수 있습니다.</p><div class="field"><label class="label">과목</label><select id="msSubject">${subjectOptions()}</select></div><div class="field"><label class="label">문제집 연결 (선택)</label><select id="msBook"><option value="">연결 안 함</option>${data.books.filter(b=>b.status!=='archived').map(b=>`<option value="${b.id}">${esc(b.title)}</option>`).join('')}</select></div><div class="field"><label class="label">학습 날짜</label><input id="msDate" type="date" required value="${today()}"></div><div class="grid2"><div class="field"><label class="label">시작 시간 (선택)</label><input id="msStart" type="time"></div><div class="field"><label class="label">종료 시간 (선택)</label><input id="msEnd" type="time"></div></div><div class="field"><label class="label">학습 시간(분) <span class="muted">시간대를 입력하면 자동 계산</span></label><input id="msMinutes" type="number" min="1" step="1" placeholder="예: 45"></div><div id="manualBookFields"></div><div class="field"><label class="label">메모 (선택)</label><textarea id="msMemo"></textarea></div><div class="modal-actions"><button type="button" class="secondary" onclick="this.closest('dialog').close()">취소</button><button class="primary">기록 저장</button></div></form>`;
+  m.showModal();
+  const refreshBookFields = () => { const b = bookById($('#msBook').value); $('#manualBookFields').innerHTML = b ? `${pageFields(b)}${problemFields('mss','msw')}` : problemFields('mss','msw'); };
+  $('#msBook').onchange = refreshBookFields;
+  $('#msStart').onchange = updateManualMinutes;
+  $('#msEnd').onchange = updateManualMinutes;
+  refreshBookFields();
+  $('#manualStudyForm').onsubmit = e => { e.preventDefault(); saveForm(e.currentTarget, async () => {
+    const date = $('#msDate').value, start = $('#msStart').value, end = $('#msEnd').value;
+    let minutes = countInput($('#msMinutes').value, '학습 시간', true);
+    let startedAt = manualIso(date, start), endedAt = manualIso(date, end);
+    if ((start && !end) || (!start && end)) throw Error('시작 시간과 종료 시간을 함께 입력해 주세요.');
+    if (startedAt && endedAt) {
+      const diff = Math.round((new Date(endedAt) - new Date(startedAt)) / 60000);
+      if (diff <= 0) throw Error('종료 시간은 시작 시간보다 늦어야 합니다.');
+      minutes = diff;
+    } else {
+      if (!minutes || minutes < 1) throw Error('시간대 또는 학습 시간(분)을 입력해 주세요.');
+      startedAt = new Date(`${date}T12:00:00`).toISOString();
+      endedAt = new Date(new Date(startedAt).getTime() + minutes * 60000).toISOString();
+    }
+    const counts = readProblems('#mss','#msw'), b = bookById($('#msBook').value), pages = b ? readPages(b) : {pages:0,current:null};
+    if (b) await addBookProgress(b.id,{date,...counts,...pages,minutes,memo:$('#msMemo').value.trim(),requestId,startedAt,endedAt,subject:$('#msSubject').value});
+    else await sb('/rest/v1/study_sessions',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({id:requestId,user_id:session.user.id,book_id:null,subject:$('#msSubject').value,mode:'self',started_at:startedAt,ended_at:endedAt,minutes,solved_count:counts.solved,wrong_count:counts.wrong})});
+    m.close(); await loadData(); renderStudy();
+  }); };
+}
+function updateManualMinutes() {
+  const date = $('#msDate')?.value, start = $('#msStart')?.value, end = $('#msEnd')?.value;
+  if (!date || !start || !end) return;
+  const diff = Math.round((new Date(`${date}T${end}:00`) - new Date(`${date}T${start}:00`)) / 60000);
+  if (diff > 0) $('#msMinutes').value = diff;
+}
 openBookLog = function(id) {
   const b = bookById(id), m = $('#modal'), requestId = crypto.randomUUID();
   m.innerHTML = `<form class="modal-body" id="bookLogForm"><h3>학습 기록</h3><p><b>${esc(b.title)}</b></p><div class="field"><label class="label" for="bld">날짜</label><input id="bld" type="date" required value="${today()}"></div>${pageFields(b)}${problemFields('bls','blw')}<div class="field"><label class="label" for="blm">시간(분)</label><input id="blm" type="number" min="0" step="1" value="0"></div><div class="field"><label class="label" for="bln">메모</label><textarea id="bln"></textarea></div><div class="modal-actions"><button type="button" class="secondary" onclick="this.closest('dialog').close()">취소</button><button class="primary">누적 저장</button></div></form>`;

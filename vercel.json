@@ -2,8 +2,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "public",
   "rewrites": [
-    { "source": "/api/config", "destination": "/api/config.js" },
-    { "source": "/api/book-search", "destination": "/api/book-search.js" },
-    { "source": "/:path((?!api/).*)", "destination": "/index.html" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

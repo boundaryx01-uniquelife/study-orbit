@@ -1,3 +1,4 @@
+import { bookCounts } from "./lib/book-metadata.js";
 import http from "node:http";
 import fs from "node:fs/promises";
 import { readFileSync, existsSync } from "node:fs";
@@ -22,6 +23,7 @@ const mime = {
   ".json": "application/json; charset=utf-8",
   ".webmanifest": "application/manifest+json; charset=utf-8",
   ".svg": "image/svg+xml; charset=utf-8",
+  ".png": "image/png",
   ".ico": "image/x-icon"
 };
 
@@ -47,7 +49,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`STUDY ORBIT v0.6.7 public running at http://localhost:${PORT}`);
+  console.log(`STUDY ORBIT v0.7.2 public running at http://localhost:${PORT}`);
   console.log(`Static root: ${root}`);
   console.log(KAKAO_REST_API_KEY ? "Kakao REST API key: loaded" : "Kakao REST API key: missing");
   console.log(SUPABASE_URL ? "Supabase URL: loaded" : "Supabase URL: missing");
@@ -74,6 +76,7 @@ async function handleBookSearch(url, res) {
 
   const data = await response.json();
   const items = (data.documents || []).map(book => ({
+    ...bookCounts(book),
     title: cleanTitle(book.title),
     authors: book.authors || [],
     publisher: book.publisher || "",

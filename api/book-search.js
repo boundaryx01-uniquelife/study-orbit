@@ -1,3 +1,4 @@
+import { bookCounts } from "../lib/book-metadata.js";
 function cleanTitle(title) {
   return String(title || "").replace(/<[^>]*>/g, "").trim();
 }
@@ -48,6 +49,7 @@ export default async function handler(req, res) {
 
   const data = await response.json();
   const items = (data.documents || []).map((book) => ({
+    ...bookCounts(book),
     title: cleanTitle(book.title),
     authors: book.authors || [],
     publisher: book.publisher || "",

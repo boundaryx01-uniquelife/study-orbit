@@ -1,0 +1,36 @@
+/* Shared PWA button rule: labels stay on one line; compact controls before they wrap. */
+button {
+  white-space: nowrap;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.book-actions,
+.memory-actions,
+.task-actions,
+.modal-actions {
+  min-width: 0;
+  gap: 6px;
+}
+
+.book-actions button,
+.memory-actions button,
+.task-actions button,
+.modal-actions button {
+  font-size: clamp(11px, 3.1vw, 15px);
+  padding-inline: clamp(9px, 2.5vw, 15px);
+}
+
+@media (max-width: 420px) {
+  .book-actions,
+  .memory-actions,
+  .task-actions {
+    gap: 5px;
+  }
+
+  .book-actions button,
+  .memory-actions button,
+  .task-actions button {
+    padding-inline: 9px;
+  }
+}

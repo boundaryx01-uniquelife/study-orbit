@@ -145,7 +145,7 @@ openTimerEnd = function() {
 };
 bookCard = function(b) {
   const logs = data.bookLogs.filter(l=>l.book_id===b.id).slice(0,3);
-  return `<section class="panel book-card">${cover(b)}<div><strong>${esc(b.title)}</strong><div class="muted small">${esc(b.publisher||'')} · ${esc(b.subject)}</div>${bookStatistics(b)}<div class="muted small">학습시간 ${fmtShort(b.total_minutes)}</div><div class="book-actions"><button class="primary" data-book-log="${b.id}">+ 학습 기록</button><button class="secondary" data-book-counts="${b.id}">책 정보 수정</button><button class="secondary" data-book-archive="${b.id}">완료 보관</button></div>${logs.map(l=>`<div class="log-entry"><div class="log-row">${esc(l.log_date)} · +${Number(l.pages_added||0)}쪽${l.current_page == null ? '' : ` (도달 ${Number(l.current_page)}쪽)`} · ${Number(l.solved_count||0)}문항 · 오답 ${Number(l.wrong_count||0)} · ${fmtShort(l.minutes)} ${esc(l.memo||'')}</div><div class="log-actions"><button class="ghost small" data-log-edit="${l.id}">수정</button><button class="ghost small" data-log-delete="${l.id}">삭제</button></div></div>`).join('')}</div></section>`;
+  return `<section class="panel book-card">${cover(b)}<div><strong>${esc(b.title)}</strong><div class="muted small">${esc(b.publisher||'')} · ${esc(b.subject)}</div>${bookStatistics(b)}<div class="muted small">학습시간 ${fmtShort(b.total_minutes)}</div><div class="book-actions"><button class="primary" data-book-log="${b.id}">+ 학습 기록</button><button class="secondary" data-book-counts="${b.id}">책 정보 수정</button><button class="secondary" data-book-archive="${b.id}">완료 보관</button></div><details class="log-details"><summary>학습 기록 ${logs.length}개 <span>수정·삭제</span></summary><div class="log-stack">${logs.length ? logs.map(l=>`<div class="log-entry"><div class="log-row">${esc(l.log_date)} · +${Number(l.pages_added||0)}쪽${l.current_page == null ? '' : ` (도달 ${Number(l.current_page)}쪽)`} · ${Number(l.solved_count||0)}문항 · 오답 ${Number(l.wrong_count||0)} · ${fmtShort(l.minutes)} ${esc(l.memo||'')}</div><div class="log-actions"><button class="ghost small" data-log-edit="${l.id}">수정</button><button class="ghost small" data-log-delete="${l.id}">삭제</button></div></div>`).join('') : '<div class="muted small">아직 학습 기록이 없습니다.</div>'}</div></details></div></section>`;
 };
 const renderBooksBeforeProgress = renderBooks;
 renderBooks = function() {
@@ -169,6 +169,6 @@ function editBookProgress(id) {
 }
 async function deleteBookProgress(id) {
   const l = progressLogById(id); if (!l || !confirm('이 학습 기록을 삭제할까요? 책의 누적 통계에서도 함께 제외됩니다.')) return;
-  try { await sb('/rest/v1/rpc/delete_book_progress',{method:'POST',body:JSON.stringify({p_log_id:id})}); await loadData(); renderBooks(); }
-  catch (error) { alert('삭제 실패: '+error.message); }
+  try { await sb('/rest/v1/rpc/delete_book_progress',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({p_log_id:id})}); await loadData(); renderBooks(); }
+  catch (error) { console.error('delete_book_progress failed', error); const hint=/function|schema cache|PGRST202|does not exist/i.test(error.message) ? '\nSupabase에서 20260917_orbit_v073_edit_logs.sql을 다시 실행한 뒤 새로고침해 주세요.' : ''; alert('삭제 실패: '+error.message+hint); }
 }

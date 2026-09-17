@@ -39,3 +39,11 @@ button {
 .log-entry .log-row { flex: 1; min-width: 0; }
 .log-actions { display: flex; gap: 4px; flex: 0 0 auto; }
 .log-actions button { padding: 7px 8px; }
+
+.log-details { margin-top: 12px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 10px; }
+.log-details summary { cursor: pointer; color: #dbeafe; font-size: 12px; font-weight: 900; list-style-position: inside; }
+.log-details summary span { color: #aab4c5; font-weight: 700; margin-left: 4px; }
+.log-stack { display: grid; gap: 7px; margin-top: 9px; }
+.log-details[open] summary { margin-bottom: 2px; }
+.light .log-details { border-color: #e2e8f0; }
+.light .log-details summary { color: #475569; }

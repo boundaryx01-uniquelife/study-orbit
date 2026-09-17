@@ -34,3 +34,8 @@ button {
     padding-inline: 9px;
   }
 }
+
+.log-entry { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.log-entry .log-row { flex: 1; min-width: 0; }
+.log-actions { display: flex; gap: 4px; flex: 0 0 auto; }
+.log-actions button { padding: 7px 8px; }

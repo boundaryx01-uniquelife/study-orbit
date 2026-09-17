@@ -38,12 +38,15 @@ test('migration preserves history, supports retries, enforces ownership and roll
       insert into auth.users values ('${user}'),('${other}');`);
     const schema = await fs.readFile(new URL('../supabase/schema.sql',import.meta.url),'utf8');
     const migration = await fs.readFile(new URL('../supabase/migrations/20260915_orbit_v072_pages.sql',import.meta.url),'utf8');
+    const editMigration = await fs.readFile(new URL('../supabase/migrations/20260917_orbit_v073_edit_logs.sql',import.meta.url),'utf8');
     // Start at the old schema, with real historical aggregates and a memory.
     await db.exec(schema.split('-- Existing v0.7.x installs:')[0].replace('create extension if not exists pgcrypto;',''));
     await db.exec(`insert into public.books(id,user_id,title,total_problems,solved_count,wrong_count,total_minutes) values('${book}','${user}','기존 책',100,20,5,60);
       insert into public.memorable_mistakes(user_id,book_id,problem_label) values('${user}','${book}','p.12 3번');`);
     await db.exec(migration);
     await db.exec(migration); // Re-running the additive upgrade is safe.
+    await db.exec(editMigration);
+    await db.exec(editMigration); // Function replacement is safe to repeat.
     await db.exec(`grant usage on schema public,auth to authenticated;
       grant select,insert,update,delete on all tables in schema public to authenticated;
       set role authenticated; set app.user_id='${user}';
@@ -64,10 +67,18 @@ test('migration preserves history, supports retries, enforces ownership and roll
     assert.equal((await db.query('select * from public.study_sessions')).rows.length,1);
     assert.equal((await db.query('select * from public.book_progress_logs')).rows.length,4);
     assert.equal((await db.query('select * from public.memorable_mistakes')).rows.length,1);
+    const firstLog=(await db.query('select id from public.book_progress_logs order by created_at asc limit 1')).rows[0].id;
+    await db.query(`select public.update_book_progress($1,'2026-09-16',8,1,12,'수정 메모',10,null)`,[firstLog]);
+    const edited=(await db.query('select * from public.books')).rows[0];
+    assert.equal(edited.solved_count,28); assert.equal(edited.wrong_count,6); assert.equal(edited.total_minutes,72); assert.equal(edited.completed_pages,50);
+    await db.query(`select public.delete_book_progress($1)`,[firstLog]);
+    const deleted=(await db.query('select * from public.books')).rows[0];
+    assert.equal(deleted.solved_count,20); assert.equal(deleted.wrong_count,5); assert.equal(deleted.total_minutes,60); assert.equal(deleted.completed_pages,50);
+    assert.equal((await db.query('select * from public.book_progress_logs')).rows.length,3);
     for (const bad of [{pages:200},{solved:1,wrong:2},{pages:-1},{pages:1,current:60},{start:'2026-09-16',end:'2026-09-15'}]) {
       await assert.rejects(record(id(5),bad));
     }
-    assert.equal((await db.query('select * from public.book_progress_logs')).rows.length,4);
+    assert.equal((await db.query('select * from public.book_progress_logs')).rows.length,3);
     await db.exec(`set app.user_id='${other}'`);
     await assert.rejects(record(id(6),{pages:1}));
     assert.equal((await db.query('select * from public.books')).rows.length,0);

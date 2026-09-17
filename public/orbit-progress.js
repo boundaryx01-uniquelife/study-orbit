@@ -145,10 +145,30 @@ openTimerEnd = function() {
 };
 bookCard = function(b) {
   const logs = data.bookLogs.filter(l=>l.book_id===b.id).slice(0,3);
-  return `<section class="panel book-card">${cover(b)}<div><strong>${esc(b.title)}</strong><div class="muted small">${esc(b.publisher||'')} · ${esc(b.subject)}</div>${bookStatistics(b)}<div class="muted small">학습시간 ${fmtShort(b.total_minutes)}</div><div class="book-actions"><button class="primary" data-book-log="${b.id}">+ 학습 기록</button><button class="secondary" data-book-counts="${b.id}">책 정보 수정</button><button class="secondary" data-book-archive="${b.id}">완료 보관</button></div>${logs.map(l=>`<div class="log-row">${esc(l.log_date)} · +${Number(l.pages_added||0)}쪽${l.current_page == null ? '' : ` (도달 ${Number(l.current_page)}쪽)`} · ${Number(l.solved_count||0)}문항 · 오답 ${Number(l.wrong_count||0)} · ${fmtShort(l.minutes)} ${esc(l.memo||'')}</div>`).join('')}</div></section>`;
+  return `<section class="panel book-card">${cover(b)}<div><strong>${esc(b.title)}</strong><div class="muted small">${esc(b.publisher||'')} · ${esc(b.subject)}</div>${bookStatistics(b)}<div class="muted small">학습시간 ${fmtShort(b.total_minutes)}</div><div class="book-actions"><button class="primary" data-book-log="${b.id}">+ 학습 기록</button><button class="secondary" data-book-counts="${b.id}">책 정보 수정</button><button class="secondary" data-book-archive="${b.id}">완료 보관</button></div>${logs.map(l=>`<div class="log-entry"><div class="log-row">${esc(l.log_date)} · +${Number(l.pages_added||0)}쪽${l.current_page == null ? '' : ` (도달 ${Number(l.current_page)}쪽)`} · ${Number(l.solved_count||0)}문항 · 오답 ${Number(l.wrong_count||0)} · ${fmtShort(l.minutes)} ${esc(l.memo||'')}</div><div class="log-actions"><button class="ghost small" data-log-edit="${l.id}">수정</button><button class="ghost small" data-log-delete="${l.id}">삭제</button></div></div>`).join('')}</div></section>`;
 };
 const renderBooksBeforeProgress = renderBooks;
 renderBooks = function() {
   renderBooksBeforeProgress();
   document.querySelectorAll('[data-book-counts]').forEach(b=>b.onclick=()=>editBookCounts(b.dataset.bookCounts));
+  document.querySelectorAll('[data-log-edit]').forEach(x=>x.onclick=()=>editBookProgress(x.dataset.logEdit));
+  document.querySelectorAll('[data-log-delete]').forEach(x=>x.onclick=()=>deleteBookProgress(x.dataset.logDelete));
 };
+
+function progressLogById(id) { return data.bookLogs.find(l=>l.id===id); }
+function editBookProgress(id) {
+  const l = progressLogById(id), b = bookById(l?.book_id), m = $('#modal');
+  if (!l || !b) return;
+  m.innerHTML = `<form class="modal-body" id="editLogForm"><h3>학습 기록 수정</h3><p><b>${esc(b.title)}</b></p><div class="field"><label class="label">날짜</label><input id="elDate" type="date" required value="${esc(l.log_date||today())}"></div><div class="grid2"><div class="field"><label class="label">학습한 페이지 수</label><input id="elPages" type="number" min="0" step="1" value="${Number(l.pages_added||0)}"></div><div class="field"><label class="label">현재 도달 페이지 (선택)</label><input id="elCurrent" type="number" min="0" step="1" value="${l.current_page == null ? '' : Number(l.current_page)}"></div></div>${problemFields('elSolved','elWrong')}<div class="field"><label class="label">시간(분)</label><input id="elMinutes" type="number" min="0" step="1" value="${Number(l.minutes||0)}"></div><div class="field"><label class="label">메모</label><textarea id="elMemo">${esc(l.memo||'')}</textarea></div><p class="muted small">수정 후 문제집의 누적 통계도 이 로그들을 기준으로 다시 계산됩니다.</p><div class="modal-actions"><button type="button" class="secondary" onclick="this.closest('dialog').close()">취소</button><button class="primary">수정 저장</button></div></form>`;
+  m.showModal();
+  $('#editLogForm').onsubmit = e => { e.preventDefault(); saveForm(e.currentTarget, async () => {
+    const current = countInput($('#elCurrent').value, '현재 페이지', true);
+    await sb('/rest/v1/rpc/update_book_progress', {method:'POST',body:JSON.stringify({p_log_id:id,p_log_date:$('#elDate').value,...readProblems('#elSolved','#elWrong'),p_minutes:countInput($('#elMinutes').value,'시간'),p_memo:$('#elMemo').value.trim(),p_pages_added:countInput($('#elPages').value,'페이지'),p_current_page:current})});
+    m.close(); await loadData(); renderBooks();
+  }); };
+}
+async function deleteBookProgress(id) {
+  const l = progressLogById(id); if (!l || !confirm('이 학습 기록을 삭제할까요? 책의 누적 통계에서도 함께 제외됩니다.')) return;
+  try { await sb('/rest/v1/rpc/delete_book_progress',{method:'POST',body:JSON.stringify({p_log_id:id})}); await loadData(); renderBooks(); }
+  catch (error) { alert('삭제 실패: '+error.message); }
+}

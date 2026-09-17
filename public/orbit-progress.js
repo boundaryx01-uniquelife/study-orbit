@@ -47,8 +47,8 @@ async function saveForm(form, action) {
   const buttons = [...form.querySelectorAll('button')];
   buttons.forEach(b => b.disabled = true);
   try { await action(); } catch (error) {
-    const migration = /record_book_progress|total_pages|completed_pages|schema cache/i.test(error.message);
-    alert(migration ? 'Supabase에서 v0.7.2 페이지 마이그레이션 SQL을 먼저 실행해 주세요.\n' + error.message : '저장 실패: ' + error.message);
+    const migration = /record_book_progress|update_book_progress|delete_book_progress|total_pages|completed_pages|schema cache|PGRST202/i.test(error.message);
+    alert(migration ? 'Supabase에서 v0.7.3 로그 관리 마이그레이션 SQL을 먼저 실행하거나 스키마 캐시를 새로고침해 주세요.\n' + error.message : '저장 실패: ' + error.message);
   } finally { delete form.dataset.saving; buttons.forEach(b => b.disabled = false); }
 }
 function bookCountFields(b) {

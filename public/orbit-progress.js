@@ -163,7 +163,8 @@ function editBookProgress(id) {
   m.showModal();
   $('#editLogForm').onsubmit = e => { e.preventDefault(); saveForm(e.currentTarget, async () => {
     const current = countInput($('#elCurrent').value, '현재 페이지', true);
-    await sb('/rest/v1/rpc/update_book_progress', {method:'POST',body:JSON.stringify({p_log_id:id,p_log_date:$('#elDate').value,...readProblems('#elSolved','#elWrong'),p_minutes:countInput($('#elMinutes').value,'시간'),p_memo:$('#elMemo').value.trim(),p_pages_added:countInput($('#elPages').value,'페이지'),p_current_page:current})});
+    const counts = readProblems('#elSolved','#elWrong');
+    await sb('/rest/v1/rpc/update_book_progress', {method:'POST',body:JSON.stringify({p_log_id:id,p_log_date:$('#elDate').value,p_solved:counts.solved,p_wrong:counts.wrong,p_minutes:countInput($('#elMinutes').value,'시간'),p_memo:$('#elMemo').value.trim(),p_pages_added:countInput($('#elPages').value,'페이지'),p_current_page:current})});
     m.close(); await loadData(); renderBooks();
   }); };
 }
